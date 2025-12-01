@@ -190,7 +190,8 @@
             cart: [],
             restaurants: [], 
             orders: [],
-            sellerProducts: []
+            sellerProducts: [],
+            tempLoginInput: null // Menyimpan input login manual sementara
         };
 
         // --- MOCK DATA ---
@@ -212,7 +213,7 @@
 
         // --- AUTH & INIT ---
         const init = async () => {
-            // Safety Timeout: Jika 3 detik masih stuck, paksa masuk
+            // Safety Timeout
             setTimeout(() => {
                 if (state.page === 'loading') {
                     console.warn("Loading timeout, forcing landing page...");
@@ -224,13 +225,10 @@
             }, 3000);
 
             try {
-                // Coba login dengan token bawaan jika ada
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     try {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } catch (tokenError) {
-                        console.warn("Custom token gagal, mencoba login anonim...", tokenError);
-                        // FALLBACK: Jika token gagal (mismatch), login sebagai tamu (Anonymous)
                         await signInAnonymously(auth);
                     }
                 } else {
@@ -238,7 +236,6 @@
                 }
             } catch (error) {
                 console.error("Auth Error Fatal:", error);
-                // Jika semua cara gagal, arahkan user ke landing page untuk login manual
                 router('landing');
             }
         };
@@ -246,7 +243,10 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                await checkUserProfile(user.uid);
+                // Jangan cek profile jika sedang dalam proses pendaftaran role
+                if (state.page !== 'role-selection') {
+                    await checkUserProfile(user.uid);
+                }
             } else {
                 router('landing');
             }
@@ -256,7 +256,6 @@
             try {
                 const userDocRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'info');
                 
-                // Timeout untuk database agar tidak stuck selamanya
                 const timeoutPromise = new Promise((_, reject) => 
                     setTimeout(() => reject(new Error("Database timeout")), 5000)
                 );
@@ -280,11 +279,18 @@
                             router('home');
                         }
                     } else {
-                        router('landing');
+                        // Jika sudah login (misal Google) tapi belum punya profil di DB -> Ke Halaman Pilih Role
+                        // Kecuali jika sedang di halaman register manual
+                        if (state.page !== 'register' && state.page !== 'login') {
+                             router('role-selection');
+                        } else {
+                             // Fallback untuk user anonim baru pertama kali buka
+                             router('landing');
+                        }
                     }
                 } catch (timeoutErr) {
                     console.error("DB Timeout/Error:", timeoutErr);
-                    router('landing'); // Fallback ke landing jika DB gagal
+                    router('landing');
                 }
 
             } catch (e) {
@@ -336,6 +342,10 @@
             else if (pageName === 'login') {
                 if(header) header.classList.add('hidden');
                 renderLogin();
+            }
+            else if (pageName === 'role-selection') { // Halaman Baru
+                if(header) header.classList.add('hidden');
+                renderRoleSelection();
             }
             else if (pageName === 'register') {
                 if(header) header.classList.add('hidden');
@@ -411,6 +421,91 @@
             `;
         };
 
+        // NEW: VIEW PILIH ROLE SETELAH LOGIN
+        window.renderRoleSelection = () => {
+             // Ambil info user (bisa dari Google Auth atau Input Manual)
+             let displayName = "Pengguna Baru";
+             if (currentUser && currentUser.email) displayName = currentUser.email;
+             if (state.tempLoginInput) displayName = state.tempLoginInput;
+
+             document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col justify-center min-h-screen pb-10">
+                    <div class="mb-6 text-center">
+                        <h1 class="text-2xl font-bold mb-2">Satu Langkah Lagi</h1>
+                        <p class="text-gray-500 text-sm">Halo <b>${displayName}</b>,<br>Anda ingin mendaftar sebagai apa?</p>
+                    </div>
+                    
+                    <div class="space-y-3 px-2">
+                        <button onclick="handleRoleSelect('pembeli')" class="w-full border-2 border-gray-100 bg-white hover:border-green-500 hover:bg-green-50 p-4 rounded-xl flex items-center transition group">
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 group-hover:text-green-600 group-hover:bg-white mr-4">
+                                <i class="fas fa-user text-xl"></i>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-bold text-gray-800 group-hover:text-green-700">Pembeli</div>
+                                <div class="text-xs text-gray-500">Pesan makanan & minuman</div>
+                            </div>
+                        </button>
+
+                        <button onclick="handleRoleSelect('penjual')" class="w-full border-2 border-gray-100 bg-white hover:border-green-500 hover:bg-green-50 p-4 rounded-xl flex items-center transition group">
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 group-hover:text-green-600 group-hover:bg-white mr-4">
+                                <i class="fas fa-store text-xl"></i>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-bold text-gray-800 group-hover:text-green-700">Penjual</div>
+                                <div class="text-xs text-gray-500">Jual produk kuliner</div>
+                            </div>
+                        </button>
+
+                        <button onclick="handleRoleSelect('driver')" class="w-full border-2 border-gray-100 bg-white hover:border-green-500 hover:bg-green-50 p-4 rounded-xl flex items-center transition group">
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 group-hover:text-green-600 group-hover:bg-white mr-4">
+                                <i class="fas fa-biking text-xl"></i>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-bold text-gray-800 group-hover:text-green-700">Driver</div>
+                                <div class="text-xs text-gray-500">Antar pesanan pelanggan</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+             `;
+        };
+
+        window.handleRoleSelect = async (role) => {
+            // Tentukan data profil
+            let email = '-';
+            let phone = '-';
+
+            if (currentUser && currentUser.email) email = currentUser.email; // Dari Google
+            if (state.tempLoginInput) {
+                if (state.tempLoginInput.includes('@')) email = state.tempLoginInput;
+                else phone = state.tempLoginInput;
+            }
+
+            try {
+                const profileData = {
+                    email: email,
+                    phone: phone,
+                    role: role,
+                    createdAt: serverTimestamp()
+                };
+
+                await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'info'), profileData);
+                userProfile = profileData;
+                
+                // Clear temp
+                state.tempLoginInput = null;
+
+                // Redirect
+                if(role === 'penjual') { loadSellerProducts(currentUser.uid); router('seller-home'); }
+                else if (role === 'driver') { router('driver-home'); }
+                else { loadBuyerData(currentUser.uid); router('home'); }
+
+            } catch (error) {
+                console.error("Save Profile Error:", error);
+                alert("Gagal menyimpan profil.");
+            }
+        };
+
         window.renderLogin = () => {
              document.getElementById('main-content').innerHTML = `
                 <div class="flex flex-col min-h-screen pt-10">
@@ -454,38 +549,26 @@
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                // Cek atau Buat Profil Otomatis
+                // Cek Profil di DB
                 const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'info');
                 const userDoc = await getDoc(userDocRef);
                 
-                if (!userDoc.exists()) {
-                     // Auto-register sebagai pembeli jika baru pertama kali login Google
-                    const newProfile = {
-                        email: user.email,
-                        phone: user.phoneNumber || '-',
-                        role: 'pembeli',
-                        createdAt: serverTimestamp()
-                    };
-                    await setDoc(userDocRef, newProfile);
-                    userProfile = newProfile;
-                } else {
+                if (userDoc.exists()) {
                     userProfile = userDoc.data();
+                    // Redirect sesuai role
+                    if(userProfile.role === 'penjual') { loadSellerProducts(user.uid); router('seller-home'); } 
+                    else if (userProfile.role === 'driver') { router('driver-home'); } 
+                    else { loadBuyerData(user.uid); router('home'); }
+                } else {
+                    // Profil belum ada -> Arahkan ke pemilihan Role
+                    router('role-selection');
                 }
-
-                // Redirect sesuai role
-                if(userProfile.role === 'penjual') { loadSellerProducts(user.uid); router('seller-home'); } 
-                else if (userProfile.role === 'driver') { router('driver-home'); } 
-                else { loadBuyerData(user.uid); router('home'); }
                 
             } catch (error) {
                 console.error("Google Login Error:", error);
-                
-                // PENANGANAN ERROR KHUSUS
                 if (error.code === 'auth/unauthorized-domain') {
-                    alert("Gagal: Domain website ini belum diizinkan di Firebase Console.\n\nSolusi: Buka Firebase Console -> Authentication -> Settings -> Authorized Domains -> Tambahkan domain ini.");
-                } else if (error.code === 'auth/popup-closed-by-user') {
-                    alert("Login dibatalkan.");
-                } else {
+                    alert("Gagal: Domain belum diizinkan. Gunakan login manual untuk demo.");
+                } else if (error.code !== 'auth/popup-closed-by-user') {
                     alert("Gagal login Google: " + error.message);
                 }
             }
@@ -501,28 +584,27 @@
             btn.innerHTML = '<div class="spinner border-white border-t-transparent w-5 h-5"></div>';
 
             try {
-                const isEmail = input.includes('@');
-                const updateData = isEmail ? { email: input } : { phone: input };
+                // Logic Simulasi Login Manual: Cek apakah user sudah punya data
+                // Kita gunakan currentUser (Anonim) sebagai base
                 const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'info');
                 const userDoc = await getDoc(userDocRef);
 
                 if (userDoc.exists()) {
+                    // Update data terbaru (jika perlu) dan login
+                    const isEmail = input.includes('@');
+                    const updateData = isEmail ? { email: input } : { phone: input };
                     await setDoc(userDocRef, { ...updateData }, { merge: true });
+                    
                     userProfile = { ...userDoc.data(), ...updateData };
+                    
+                    if(userProfile.role === 'penjual') { loadSellerProducts(currentUser.uid); router('seller-home'); } 
+                    else if (userProfile.role === 'driver') { router('driver-home'); } 
+                    else { loadBuyerData(currentUser.uid); router('home'); }
                 } else {
-                    const newProfile = {
-                        email: isEmail ? input : '-',
-                        phone: !isEmail ? input : '-',
-                        role: 'pembeli',
-                        createdAt: serverTimestamp()
-                    };
-                    await setDoc(userDocRef, newProfile);
-                    userProfile = newProfile;
+                    // User Baru (Manual) -> Simpan input sementara & Arahkan ke pemilihan Role
+                    state.tempLoginInput = input;
+                    router('role-selection');
                 }
-
-                if(userProfile.role === 'penjual') { loadSellerProducts(currentUser.uid); router('seller-home'); } 
-                else if (userProfile.role === 'driver') { router('driver-home'); } 
-                else { loadBuyerData(currentUser.uid); router('home'); }
 
             } catch (error) {
                 console.error("Login Error:", error);
@@ -533,6 +615,9 @@
         };
 
         window.renderRegister = () => {
+             // Redirect register manual ke role selection juga agar konsisten, 
+             // tapi form register biasa juga oke. 
+             // Kita pakai form register lama tapi dengan logic baru
              document.getElementById('main-content').innerHTML = `
                 <div class="flex flex-col justify-center min-h-screen pb-10">
                     <button onclick="router('landing')" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-4 -mt-10 hover:bg-gray-200">
@@ -551,6 +636,7 @@
                             <label class="block text-xs font-bold text-gray-500 mb-1">Nomor HP (Wajib)</label>
                             <input type="tel" id="reg-phone" required class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500" placeholder="0812...">
                         </div>
+                        <!-- Role Selection sudah ada di form register manual -->
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Daftar Sebagai</label>
                             <div class="grid grid-cols-3 gap-2">

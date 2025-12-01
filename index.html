@@ -571,6 +571,237 @@
             document.getElementById('main-content').innerHTML = html;
         };
 
+        // --- TAMBAHAN FUNGSI HALAMAN YANG HILANG (DENGAN TEMA BARU) ---
+
+        window.renderOrders = () => {
+             document.getElementById('main-header').innerHTML = `<h1 class="font-heading text-xl font-bold">Riwayat Pesanan</h1>`;
+             
+             if(state.orders.length === 0) {
+                document.getElementById('main-content').innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-96 text-center px-6">
+                        <div class="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mb-6 text-orange-200 text-5xl">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-xl text-gray-800 mb-2">Belum ada pesanan</h3>
+                        <p class="text-sm text-gray-400 leading-relaxed">Perut kenyang, hati senang. <br>Yuk pesan makanan lezat sekarang!</p>
+                        <button onclick="router('home')" class="mt-8 px-6 py-3 bg-yellow-500 text-gray-900 font-bold rounded-full shadow-lg hover:bg-yellow-400 transition transform hover:-translate-y-1">
+                            Cari Makan
+                        </button>
+                    </div>`;
+                return;
+            }
+            
+            let html = `<div class="space-y-4 pb-24 mt-2 px-1">`;
+            state.orders.forEach(order => {
+                const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) : 'Baru saja';
+                html += `
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="font-bold text-gray-900 font-heading text-lg">${order.restaurantName}</div>
+                                <div class="text-xs text-gray-400 mt-1">${date}</div>
+                            </div>
+                            <span class="bg-green-50 text-green-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide border border-green-100">Selesai</span>
+                        </div>
+                        <div class="border-t border-gray-50 py-3 space-y-2">
+                            ${order.items.map(i => `
+                                <div class="flex justify-between text-xs text-gray-600">
+                                    <span><span class="font-bold text-gray-800">${i.qty}x</span> ${i.name}</span>
+                                    <span>${formatRupiah(i.price*i.qty)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="flex justify-between items-center font-bold text-sm mt-3 border-t border-dashed border-gray-200 pt-3">
+                            <span class="text-gray-500">Total Bayar</span>
+                            <span class="text-orange-600 text-lg font-heading">${formatRupiah(order.total)}</span>
+                        </div>
+                        <button class="w-full mt-4 border border-orange-200 text-orange-600 text-xs font-bold py-2.5 rounded-xl hover:bg-orange-50 transition">
+                            Pesan Lagi
+                        </button>
+                    </div>`;
+            });
+            html += `</div>`;
+            document.getElementById('main-content').innerHTML = html;
+        };
+
+        window.renderProfile = () => {
+            const role = userProfile ? userProfile.role.toUpperCase() : 'USER';
+            document.getElementById('main-header').innerHTML = `<h1 class="font-heading text-xl font-bold">Profil Saya</h1>`;
+            document.getElementById('main-content').innerHTML = `
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6 flex items-center space-x-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-10 -mt-10 opacity-50"></div>
+                    
+                    <div class="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-3xl shadow-lg border-4 border-white relative z-10">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <h2 class="font-bold text-xl text-gray-900 font-heading mb-1">${userProfile?.email || 'Tamu'}</h2>
+                        <div class="flex flex-col items-start gap-1">
+                             <span class="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">${userProfile?.phone || '-'}</span>
+                             <span class="text-[10px] bg-gray-900 text-white px-2 py-0.5 rounded font-bold tracking-widest mt-1">${role}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                    <div class="p-4 border-b border-gray-50 bg-gray-50/50 font-bold text-gray-400 text-[10px] uppercase tracking-wider">Ganti Mode Akun</div>
+                    
+                    <button onclick="handleRoleSelect('pembeli')" class="w-full text-left p-4 flex justify-between items-center hover:bg-orange-50 border-b border-gray-50 transition group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition"><i class="fas fa-user"></i></div>
+                            <span class="text-sm font-bold text-gray-700 group-hover:text-orange-700">Pembeli</span>
+                        </div>
+                        ${userProfile?.role === 'pembeli' ? '<i class="fas fa-check-circle text-orange-600 text-xl"></i>' : '<i class="fas fa-chevron-right text-gray-300 text-xs"></i>'}
+                    </button>
+                    
+                    <button onclick="handleRoleSelect('penjual')" class="w-full text-left p-4 flex justify-between items-center hover:bg-orange-50 border-b border-gray-50 transition group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition"><i class="fas fa-store"></i></div>
+                            <span class="text-sm font-bold text-gray-700 group-hover:text-orange-700">Penjual</span>
+                        </div>
+                        ${userProfile?.role === 'penjual' ? '<i class="fas fa-check-circle text-orange-600 text-xl"></i>' : '<i class="fas fa-chevron-right text-gray-300 text-xs"></i>'}
+                    </button>
+                    
+                    <button onclick="handleRoleSelect('driver')" class="w-full text-left p-4 flex justify-between items-center hover:bg-orange-50 transition group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-green-50 text-green-500 flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition"><i class="fas fa-biking"></i></div>
+                            <span class="text-sm font-bold text-gray-700 group-hover:text-orange-700">Driver</span>
+                        </div>
+                        ${userProfile?.role === 'driver' ? '<i class="fas fa-check-circle text-orange-600 text-xl"></i>' : '<i class="fas fa-chevron-right text-gray-300 text-xs"></i>'}
+                    </button>
+                </div>
+                 
+                <button onclick="logout()" class="w-full bg-white border-2 border-red-100 text-red-500 font-bold py-4 rounded-2xl hover:bg-red-50 hover:border-red-200 transition shadow-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i> Keluar Aplikasi
+                </button>
+                
+                <p class="text-center text-gray-300 text-[10px] mt-6">GKSK App v3.0 • Build with ❤️</p>
+            `;
+        };
+
+        window.renderSellerDashboard = () => {
+             document.getElementById('main-header').innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h1 class="font-heading text-xl font-bold">Dashboard Penjual</h1>
+                    <span class="text-[10px] bg-white/20 backdrop-blur-sm border border-white/30 px-3 py-1 rounded-full font-bold">ONLINE</span>
+                </div>
+            `;
+            
+            let html = `
+                <div class="bg-gradient-to-br from-orange-500 to-red-600 rounded-3xl p-6 text-white mb-8 shadow-xl shadow-orange-200 relative overflow-hidden">
+                    <div class="relative z-10">
+                        <h2 class="text-xs font-bold text-orange-100 uppercase tracking-widest mb-1">Total Produk Aktif</h2>
+                        <div class="text-5xl font-black font-heading mt-2">${state.sellerProducts.length}</div>
+                        <div class="text-[10px] mt-4 bg-white/20 inline-block px-3 py-1 rounded-full backdrop-blur-md border border-white/10">Siap Berjualan</div>
+                    </div>
+                    <i class="fas fa-store absolute -right-6 -bottom-6 text-[120px] text-white opacity-10 rotate-12"></i>
+                </div>
+                
+                <div class="mb-10">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-lg text-gray-800 font-heading">Tambah Menu</h3>
+                    </div>
+                    
+                    <form onsubmit="handleProductUpload(event)" class="bg-white p-6 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5">
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase tracking-wide pl-1">Nama Makanan</label>
+                            <input type="text" id="prod-name" required class="w-full mt-2 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition" placeholder="Contoh: Nasi Goreng Spesial">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase tracking-wide pl-1">Harga (Rp)</label>
+                            <input type="number" id="prod-price" required class="w-full mt-2 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition" placeholder="15000">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3 block pl-1">Foto Produk</label>
+                            <label for="prod-img" class="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gray-50 hover:bg-orange-50 hover:border-orange-400 transition group relative overflow-hidden">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6 text-gray-400 group-hover:text-orange-500" id="img-preview-area">
+                                    <div class="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                        <i class="fas fa-camera text-xl"></i>
+                                    </div>
+                                    <p class="text-xs font-medium">Klik untuk upload</p>
+                                </div>
+                                <img id="img-preview" class="hidden w-full h-full object-cover">
+                                <input id="prod-img" type="file" accept="image/*" required onchange="previewImage(this)">
+                            </label>
+                        </div>
+                        <button type="submit" id="btn-upload" class="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-gray-800 transition flex justify-center items-center gap-2">
+                            <i class="fas fa-plus-circle"></i> Upload Produk
+                        </button>
+                    </form>
+                </div>
+                
+                <h3 class="font-bold text-lg mb-4 text-gray-800 font-heading px-1">Daftar Produk</h3>
+                <div class="space-y-4 pb-24">
+            `;
+            
+            if(state.sellerProducts.length === 0) {
+                html += `
+                    <div class="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
+                        <div class="text-gray-300 text-4xl mb-3"><i class="fas fa-box-open"></i></div>
+                        <p class="text-gray-400 text-sm">Belum ada produk yang dijual.</p>
+                    </div>`;
+            } else {
+                state.sellerProducts.forEach(prod => {
+                    html += `
+                        <div class="flex bg-white p-3 rounded-2xl border border-gray-100 shadow-sm items-center hover:shadow-md transition">
+                            <img src="${prod.image}" class="w-16 h-16 rounded-xl object-cover bg-gray-100">
+                            <div class="ml-4 flex-1">
+                                <h4 class="font-bold text-sm text-gray-900 font-heading">${prod.name}</h4>
+                                <p class="text-orange-600 font-bold text-sm mt-0.5">${formatRupiah(prod.price)}</p>
+                            </div>
+                            <button class="text-gray-300 hover:text-red-500 hover:bg-red-50 w-10 h-10 flex items-center justify-center rounded-full transition">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+            html += `</div>`;
+            document.getElementById('main-content').innerHTML = html;
+        };
+
+        window.renderDriverDashboard = () => {
+            document.getElementById('main-header').innerHTML = `<h1 class="font-heading text-xl font-bold">Driver App</h1>`;
+            document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full pt-16 px-6">
+                    <div class="relative mb-8">
+                        <div class="w-40 h-40 bg-green-50 rounded-full flex items-center justify-center animate-pulse">
+                            <div class="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-satellite-dish text-green-600 text-5xl"></i>
+                            </div>
+                        </div>
+                        <div class="absolute top-0 right-0 bg-white shadow-md px-3 py-1 rounded-full flex items-center gap-2 border border-gray-100">
+                            <span class="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+                            <span class="text-xs font-bold text-green-600">GPS ON</span>
+                        </div>
+                    </div>
+                    
+                    <h2 class="text-2xl font-bold mb-2 font-heading text-gray-900">Mencari Order...</h2>
+                    <p class="text-gray-500 text-center max-w-xs text-sm leading-relaxed mb-10">
+                        Sistem sedang mencari pesanan di sekitar Anda. Pastikan notifikasi aktif.
+                    </p>
+                    
+                    <div class="w-full bg-white p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
+                        <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-50">
+                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Status Driver</span>
+                             <div class="flex items-center bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                                <span class="font-bold text-green-700 text-xs">Online</span>
+                             </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Pendapatan Hari Ini</span>
+                             <span class="font-bold text-gray-900">Rp 0</span>
+                        </div>
+                    </div>
+                    
+                    <button onclick="router('profile')" class="mt-8 text-gray-400 text-xs font-medium hover:text-orange-600 transition flex items-center gap-2">
+                        <i class="fas fa-cog"></i> Pengaturan Akun
+                    </button>
+                </div>
+            `;
+        };
+
         // --- GLOBAL FUNCTIONS EXPORT (FIX REFERENCE ERROR) ---
         window.previewImage = (input) => {
             if (input.files && input.files[0]) {

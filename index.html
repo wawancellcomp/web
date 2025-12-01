@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GKSK - Kuliner Super App</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .bottom-nav-item.active { color: #00880c; }
+        .card-shadow { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        
+        /* Animasi loading sederhana */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #00880c;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Input File Hidden */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Slide Up Animation */
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 pb-20">
+
+    <!-- Container Utama -->
+    <div id="app" class="max-w-md mx-auto bg-white min-h-screen relative shadow-2xl overflow-hidden">
+        
+        <!-- Header (Berubah sesuai halaman) -->
+        <header id="main-header" class="bg-white p-4 sticky top-0 z-50 border-b border-gray-100 hidden">
+            <!-- Disini konten header akan dirender via JS -->
+        </header>
+
+        <!-- Konten Halaman -->
+        <main id="main-content" class="p-4 overflow-y-auto h-full min-h-screen pb-24">
+            <!-- Konten dinamis -->
+            <div class="flex flex-col justify-center items-center h-screen -mt-20">
+                <div class="spinner mb-4"></div>
+                <p class="text-xs text-gray-400">Memuat GKSK...</p>
+                <!-- Tombol refresh manual jika macet terlalu lama -->
+                <button onclick="window.location.reload()" class="mt-8 text-xs text-green-600 font-bold border border-green-200 px-4 py-2 rounded-full hidden" id="retry-btn">
+                    Ulangi Memuat
+                </button>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation (Hanya muncul jika sudah login & role pembeli) -->
+        <nav id="bottom-nav" class="hidden fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 flex justify-around items-center py-3 z-50 text-xs font-medium text-gray-400">
+            <button onclick="router('home')" class="bottom-nav-item flex flex-col items-center w-full active" id="nav-home">
+                <i class="fas fa-home text-xl mb-1"></i>
+                <span>Beranda</span>
+            </button>
+            <button onclick="router('promo')" class="bottom-nav-item flex flex-col items-center w-full" id="nav-promo">
+                <i class="fas fa-percent text-xl mb-1"></i>
+                <span>Promo</span>
+            </button>
+            <button onclick="router('orders')" class="bottom-nav-item flex flex-col items-center w-full" id="nav-orders">
+                <i class="fas fa-receipt text-xl mb-1"></i>
+                <span>Pesanan</span>
+            </button>
+            <button onclick="router('profile')" class="bottom-nav-item flex flex-col items-center w-full" id="nav-profile">
+                <i class="fas fa-user text-xl mb-1"></i>
+                <span>Profil</span>
+            </button>
+        </nav>
+        
+        <!-- Penjual Nav -->
+        <nav id="seller-nav" class="hidden fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 flex justify-around items-center py-3 z-50 text-xs font-medium text-gray-400">
+             <button onclick="router('seller-home')" class="bottom-nav-item flex flex-col items-center w-full active" id="nav-seller-home">
+                <i class="fas fa-store text-xl mb-1"></i>
+                <span>Produk Saya</span>
+            </button>
+            <button onclick="router('profile')" class="bottom-nav-item flex flex-col items-center w-full" id="nav-seller-profile">
+                <i class="fas fa-user text-xl mb-1"></i>
+                <span>Akun</span>
+            </button>
+        </nav>
+
+        <!-- Floating Cart Button (Hidden by default, Only for Buyers) -->
+        <div id="cart-float" class="hidden fixed bottom-20 left-0 right-0 max-w-md mx-auto px-4 z-40">
+            <button onclick="showCartModal()" class="w-full bg-[#00880c] text-white p-4 rounded-xl shadow-lg flex justify-between items-center font-bold">
+                <div class="flex items-center">
+                    <i class="fas fa-shopping-basket mr-2"></i>
+                    <span id="float-count">0 item</span>
+                </div>
+                <div class="flex items-center">
+                    <span id="float-total" class="mr-2">Rp 0</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </button>
+        </div>
+
+        <!-- Cart Modal / Checkout -->
+        <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex flex-col justify-end">
+            <div class="bg-white rounded-t-2xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">Pesanan Kamu</h2>
+                    <button onclick="hideCartModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                
+                <div id="cart-items-container" class="mb-4 space-y-3">
+                    <!-- Cart items rendered here -->
+                </div>
+
+                <!-- Rincian Pembayaran -->
+                <div class="border-t border-gray-100 pt-4 mb-4 space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Harga Makanan</span>
+                        <span id="bill-food-total" class="font-medium">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Ongkos Kirim <span id="bill-distance" class="text-xs bg-gray-100 px-1 rounded"></span></span>
+                        <span id="bill-delivery-fee" class="font-medium">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Biaya Aplikasi</span>
+                        <span id="bill-app-fee" class="font-medium">Rp 2.000</span>
+                    </div>
+                </div>
+
+                <div class="border-t border-dashed border-gray-300 pt-4 mb-4">
+                    <div class="flex justify-between font-bold text-lg">
+                        <span>Total Pembayaran</span>
+                        <span id="cart-final-total" class="text-[#00880c]">Rp 0</span>
+                    </div>
+                </div>
+
+                <button onclick="processOrder()" id="btn-order" class="w-full bg-[#00880c] text-white py-3 rounded-full font-bold shadow-lg hover:bg-green-700 transition">
+                    Pesan Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Logic & App Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDoc, setDoc, doc, query, orderBy, onSnapshot, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- KONFIGURASI ---
+        const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/deva5eknr/image/upload";
+        const CLOUDINARY_PRESET = "markaz";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4t1Gya_QHDzTkYsF7U-pw1Uo1oQUABpM",
+            authDomain: "websitemarkaz.firebaseapp.com",
+            databaseURL: "https://websitemarkaz-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "websitemarkaz",
+            storageBucket: "websitemarkaz.firebasestorage.app",
+            messagingSenderId: "5529883980",
+            appId: "1:5529883980:web:792ce6d869070e9a79ebe9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gksk-app-v1';
+        
+        let currentUser = null;
+        let userProfile = null; // Menyimpan data detail user
+
+        // --- STATE MANAGEMENT ---
+        const state = {
+            page: 'loading',
+            cart: [],
+            restaurants: [], 
+            orders: [],
+            sellerProducts: []
+        };
+
+        // --- MOCK DATA ---
+        const MOCK_RESTAURANTS = [
+            {
+                id: 'r1',
+                name: 'Geprek Bensu',
+                rating: 4.7,
+                distance: '1.2 km',
+                time: '20 min',
+                image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=500&q=80',
+                categories: ['Ayam', 'Pedas'],
+                isOfficial: true,
+                menu: [
+                    { id: 'm1', name: 'Paket Geprek Leleh', price: 25000, desc: 'Ayam geprek dengan keju mozarella leleh + nasi', img: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=150&q=80' },
+                ]
+            }
+        ];
+
+        // --- AUTH & INIT ---
+        const init = async () => {
+            // Safety Timeout: Jika 3 detik masih stuck, paksa masuk
+            setTimeout(() => {
+                if (state.page === 'loading') {
+                    console.warn("Loading timeout, forcing landing page...");
+                    const retryBtn = document.getElementById('retry-btn');
+                    if(retryBtn) retryBtn.classList.remove('hidden');
+                    
+                    if (!currentUser) router('landing');
+                }
+            }, 3000);
+
+            try {
+                // Coba login dengan token bawaan jika ada
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenError) {
+                        console.warn("Custom token gagal, mencoba login anonim...", tokenError);
+                        // FALLBACK: Jika token gagal (mismatch), login sebagai tamu (Anonymous)
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error Fatal:", error);
+                // Jika semua cara gagal, arahkan user ke landing page untuk login manual
+                router('landing');
+            }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await checkUserProfile(user.uid);
+            } else {
+                router('landing');
+            }
+        });
+
+        const checkUserProfile = async (uid) => {
+            try {
+                const userDocRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'info');
+                
+                // Timeout untuk database agar tidak stuck selamanya
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Database timeout")), 5000)
+                );
+                
+                try {
+                    const userDoc = await Promise.race([
+                        getDoc(userDocRef),
+                        timeoutPromise
+                    ]);
+
+                    if (userDoc.exists()) {
+                        userProfile = userDoc.data();
+                        
+                        if (userProfile.role === 'penjual') {
+                            loadSellerProducts(uid);
+                            router('seller-home');
+                        } else if (userProfile.role === 'driver') {
+                            router('driver-home');
+                        } else {
+                            loadBuyerData(uid);
+                            router('home');
+                        }
+                    } else {
+                        router('landing');
+                    }
+                } catch (timeoutErr) {
+                    console.error("DB Timeout/Error:", timeoutErr);
+                    router('landing'); // Fallback ke landing jika DB gagal
+                }
+
+            } catch (e) {
+                console.error("Error checking profile", e);
+                router('landing');
+            }
+        };
+
+        // --- DATA LOADERS ---
+        const loadBuyerData = (uid) => {
+            const ordersRef = collection(db, 'artifacts', appId, 'users', uid, 'orders');
+            const q = query(ordersRef, orderBy('createdAt', 'desc'));
+            onSnapshot(q, (snapshot) => {
+                state.orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if(state.page === 'orders') renderOrders();
+            }, (err) => console.log(err));
+
+            state.restaurants = [...MOCK_RESTAURANTS];
+        };
+
+        const loadSellerProducts = (uid) => {
+            const productsRef = collection(db, 'artifacts', appId, 'users', uid, 'products');
+            onSnapshot(productsRef, (snapshot) => {
+                state.sellerProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if(state.page === 'seller-home') renderSellerDashboard();
+            }, (err) => console.log(err));
+        };
+
+        // --- ROUTER & UI ---
+        window.router = (pageName, param = null) => {
+            state.page = pageName;
+            
+            // UI Reset
+            const header = document.getElementById('main-header');
+            const bottomNav = document.getElementById('bottom-nav');
+            const sellerNav = document.getElementById('seller-nav');
+            const cartFloat = document.getElementById('cart-float');
+
+            if(header) header.classList.remove('hidden');
+            if(bottomNav) bottomNav.classList.add('hidden');
+            if(sellerNav) sellerNav.classList.add('hidden');
+            if(cartFloat) cartFloat.classList.add('hidden');
+
+            // Routing Logic
+            if (pageName === 'landing') {
+                if(header) header.classList.add('hidden');
+                renderLanding();
+            }
+            else if (pageName === 'login') {
+                if(header) header.classList.add('hidden');
+                renderLogin();
+            }
+            else if (pageName === 'register') {
+                if(header) header.classList.add('hidden');
+                renderRegister();
+            }
+            else if (pageName === 'home') {
+                if(bottomNav) bottomNav.classList.remove('hidden');
+                updateActiveNav('nav-home');
+                renderHome();
+                updateCartFloat();
+            }
+            else if (pageName === 'seller-home') {
+                if(sellerNav) sellerNav.classList.remove('hidden');
+                updateActiveNav('nav-seller-home');
+                renderSellerDashboard();
+            }
+            else if (pageName === 'driver-home') {
+                renderDriverDashboard();
+            }
+            else if (pageName === 'restaurant') {
+                renderRestaurant(param);
+                updateCartFloat();
+            }
+            else if (pageName === 'orders') {
+                if(bottomNav) bottomNav.classList.remove('hidden');
+                updateActiveNav('nav-orders');
+                renderOrders();
+            }
+            else if (pageName === 'profile') {
+                if (userProfile?.role === 'penjual') {
+                    if(sellerNav) sellerNav.classList.remove('hidden');
+                } else {
+                    if(bottomNav) bottomNav.classList.remove('hidden');
+                }
+                renderProfile();
+            }
+            else if (pageName === 'promo') {
+                if(bottomNav) bottomNav.classList.remove('hidden');
+                updateActiveNav('nav-promo');
+                renderPromo();
+            }
+
+            window.scrollTo(0,0);
+        };
+
+        const updateActiveNav = (id) => {
+            document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active', 'text-green-600'));
+            const activeNav = document.getElementById(id);
+            if(activeNav) activeNav.classList.add('active', 'text-green-600');
+        }
+
+        // --- VIEWS ---
+
+        window.renderLanding = () => {
+            document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col justify-end min-h-screen pb-10 relative">
+                    <div class="absolute inset-0 bg-green-50 z-0 flex items-center justify-center overflow-hidden">
+                        <i class="fas fa-utensils text-[200px] text-green-100 opacity-50 transform rotate-12"></i>
+                    </div>
+                    <div class="relative z-10 text-center px-6">
+                        <div class="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-6 text-[#00880c] text-4xl">
+                            <i class="fas fa-motorcycle"></i>
+                        </div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">GKSK</h1>
+                        <p class="text-gray-500 mb-10">Grup Kuliner Sei Kamah. <br>Pesan makan, jualan, atau antar.</p>
+                        <div class="space-y-3">
+                            <button onclick="router('login')" class="w-full bg-[#00880c] text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-green-700 transition">Masuk</button>
+                            <button onclick="router('register')" class="w-full bg-white text-[#00880c] border border-[#00880c] font-bold py-3.5 rounded-xl hover:bg-green-50 transition">Daftar Akun Baru</button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-8">Dengan masuk, Anda menyetujui S&K GKSK.</p>
+                    </div>
+                </div>
+            `;
+        };
+
+        window.renderLogin = () => {
+             document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col min-h-screen pt-10">
+                    <button onclick="router('landing')" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-6 hover:bg-gray-200">
+                        <i class="fas fa-arrow-left text-gray-600"></i>
+                    </button>
+                    <h1 class="text-2xl font-bold mb-2">Selamat Datang Kembali!</h1>
+                    <p class="text-gray-500 text-sm mb-8">Masuk untuk melanjutkan ke GKSK.</p>
+                    <form onsubmit="handleLogin(event)" class="space-y-6">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-2">Nomor HP atau Email Google</label>
+                            <input type="text" id="login-input" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm focus:outline-none focus:border-green-500" placeholder="Contoh: 0812... atau nama@gmail.com">
+                        </div>
+                        <button type="submit" id="btn-login" class="w-full bg-[#00880c] text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-green-700 transition flex justify-center items-center">
+                            <span>Masuk</span>
+                        </button>
+                    </form>
+
+                    <!-- Google Login Button -->
+                    <div class="mt-6">
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
+                            <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">Atau</span></div>
+                        </div>
+                        <button onclick="handleGoogleLogin()" class="mt-4 w-full bg-white border border-gray-200 text-gray-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 transition flex items-center justify-center shadow-sm">
+                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 mr-2">
+                            <span>Masuk dengan Google</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-6 text-center text-sm text-gray-500">
+                        Belum punya akun? <button onclick="router('register')" class="text-[#00880c] font-bold">Daftar dulu</button>
+                    </div>
+                </div>
+            `;
+        };
+
+        window.handleGoogleLogin = async () => {
+            try {
+                const provider = new GoogleAuthProvider();
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+                
+                // Cek atau Buat Profil Otomatis
+                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'info');
+                const userDoc = await getDoc(userDocRef);
+                
+                if (!userDoc.exists()) {
+                     // Auto-register sebagai pembeli jika baru pertama kali login Google
+                    const newProfile = {
+                        email: user.email,
+                        phone: user.phoneNumber || '-',
+                        role: 'pembeli',
+                        createdAt: serverTimestamp()
+                    };
+                    await setDoc(userDocRef, newProfile);
+                    userProfile = newProfile;
+                } else {
+                    userProfile = userDoc.data();
+                }
+
+                // Redirect sesuai role
+                if(userProfile.role === 'penjual') { loadSellerProducts(user.uid); router('seller-home'); } 
+                else if (userProfile.role === 'driver') { router('driver-home'); } 
+                else { loadBuyerData(user.uid); router('home'); }
+                
+            } catch (error) {
+                console.error("Google Login Error:", error);
+                
+                // PENANGANAN ERROR KHUSUS
+                if (error.code === 'auth/unauthorized-domain') {
+                    alert("Gagal: Domain website ini belum diizinkan di Firebase Console.\n\nSolusi: Buka Firebase Console -> Authentication -> Settings -> Authorized Domains -> Tambahkan domain ini.");
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    alert("Login dibatalkan.");
+                } else {
+                    alert("Gagal login Google: " + error.message);
+                }
+            }
+        };
+
+        window.handleLogin = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('login-input').value;
+            const btn = document.getElementById('btn-login');
+            
+            if(!input) return alert("Mohon isi nomor HP atau Email");
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner border-white border-t-transparent w-5 h-5"></div>';
+
+            try {
+                const isEmail = input.includes('@');
+                const updateData = isEmail ? { email: input } : { phone: input };
+                const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'info');
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists()) {
+                    await setDoc(userDocRef, { ...updateData }, { merge: true });
+                    userProfile = { ...userDoc.data(), ...updateData };
+                } else {
+                    const newProfile = {
+                        email: isEmail ? input : '-',
+                        phone: !isEmail ? input : '-',
+                        role: 'pembeli',
+                        createdAt: serverTimestamp()
+                    };
+                    await setDoc(userDocRef, newProfile);
+                    userProfile = newProfile;
+                }
+
+                if(userProfile.role === 'penjual') { loadSellerProducts(currentUser.uid); router('seller-home'); } 
+                else if (userProfile.role === 'driver') { router('driver-home'); } 
+                else { loadBuyerData(currentUser.uid); router('home'); }
+
+            } catch (error) {
+                console.error("Login Error:", error);
+                alert("Gagal masuk. Silakan coba lagi.");
+                btn.innerHTML = 'Masuk';
+                btn.disabled = false;
+            }
+        };
+
+        window.renderRegister = () => {
+             document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col justify-center min-h-screen pb-10">
+                    <button onclick="router('landing')" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-4 -mt-10 hover:bg-gray-200">
+                        <i class="fas fa-arrow-left text-gray-600"></i>
+                    </button>
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold">Daftar Akun GKSK</h1>
+                        <p class="text-gray-500 text-sm">Lengkapi data untuk memulai.</p>
+                    </div>
+                    <form onsubmit="handleRegister(event)" class="space-y-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Email Google (Wajib)</label>
+                            <input type="email" id="reg-email" required class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500" placeholder="nama@gmail.com">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Nomor HP (Wajib)</label>
+                            <input type="tel" id="reg-phone" required class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500" placeholder="0812...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Daftar Sebagai</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="role" value="pembeli" checked class="peer sr-only">
+                                    <div class="border-2 border-gray-100 peer-checked:border-green-500 peer-checked:bg-green-50 rounded-xl p-3 text-center transition">
+                                        <i class="fas fa-user text-xl mb-1 block text-gray-400 peer-checked:text-green-600"></i>
+                                        <span class="text-xs font-bold text-gray-600 peer-checked:text-green-700">Pembeli</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="role" value="penjual" class="peer sr-only">
+                                    <div class="border-2 border-gray-100 peer-checked:border-green-500 peer-checked:bg-green-50 rounded-xl p-3 text-center transition">
+                                        <i class="fas fa-store text-xl mb-1 block text-gray-400 peer-checked:text-green-600"></i>
+                                        <span class="text-xs font-bold text-gray-600 peer-checked:text-green-700">Penjual</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="role" value="driver" class="peer sr-only">
+                                    <div class="border-2 border-gray-100 peer-checked:border-green-500 peer-checked:bg-green-50 rounded-xl p-3 text-center transition">
+                                        <i class="fas fa-biking text-xl mb-1 block text-gray-400 peer-checked:text-green-600"></i>
+                                        <span class="text-xs font-bold text-gray-600 peer-checked:text-green-700">Driver</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" id="btn-reg" class="w-full bg-[#00880c] text-white font-bold py-3 rounded-xl shadow-lg mt-4 hover:bg-green-700 transition">Mulai Sekarang</button>
+                    </form>
+                    <div class="mt-6 text-center text-sm text-gray-500">
+                        Sudah punya akun? <button onclick="router('login')" class="text-[#00880c] font-bold">Masuk disini</button>
+                    </div>
+                </div>
+            `;
+        };
+
+        window.handleRegister = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reg-email').value;
+            const phone = document.getElementById('reg-phone').value;
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const btn = document.getElementById('btn-reg');
+            btn.disabled = true; btn.innerText = "Memproses...";
+
+            try {
+                const profileData = { email, phone, role, createdAt: serverTimestamp() };
+                await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'info'), profileData);
+                userProfile = profileData;
+                alert(`Selamat datang, ${role}!`);
+                
+                if(role === 'penjual') { loadSellerProducts(currentUser.uid); router('seller-home'); }
+                else if (role === 'driver') { router('driver-home'); }
+                else { loadBuyerData(currentUser.uid); router('home'); }
+            } catch (error) {
+                console.error("Register Error:", error);
+                alert("Gagal mendaftar. Coba lagi.");
+                btn.disabled = false; btn.innerText = "Mulai Sekarang";
+            }
+        };
+
+        window.renderSellerDashboard = () => {
+             document.getElementById('main-header').innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h1 class="font-bold text-xl">Dashboard Penjual</h1>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Aktif</span>
+                </div>
+            `;
+            let html = `
+                <div class="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-4 text-white mb-6 shadow-md">
+                    <h2 class="text-sm opacity-90">Total Produk</h2>
+                    <div class="text-3xl font-bold mt-1">${state.sellerProducts.length}</div>
+                    <div class="text-xs mt-2 bg-white/20 inline-block px-2 py-1 rounded">Siap Berjualan</div>
+                </div>
+                <div class="mb-6">
+                    <h3 class="font-bold text-lg mb-3">Tambah Produk Baru</h3>
+                    <form onsubmit="handleProductUpload(event)" class="bg-white p-4 rounded-xl border border-gray-100 space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-500">Nama Makanan</label>
+                            <input type="text" id="prod-name" required class="w-full border-b border-gray-200 py-2 text-sm focus:outline-none focus:border-green-500" placeholder="Contoh: Nasi Goreng Spesial">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-500">Harga (Rp)</label>
+                            <input type="number" id="prod-price" required class="w-full border-b border-gray-200 py-2 text-sm focus:outline-none focus:border-green-500" placeholder="15000">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-500 mb-2 block">Foto Produk</label>
+                            <label for="prod-img" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6 text-gray-400" id="img-preview-area">
+                                    <i class="fas fa-cloud-upload-alt text-2xl mb-2"></i>
+                                    <p class="text-xs">Klik untuk upload foto</p>
+                                </div>
+                                <img id="img-preview" class="hidden w-full h-full object-cover rounded-lg">
+                                <input id="prod-img" type="file" accept="image/*" required onchange="previewImage(this)">
+                            </label>
+                        </div>
+                        <button type="submit" id="btn-upload" class="w-full bg-green-600 text-white font-bold py-2 rounded-lg text-sm shadow-md hover:bg-green-700">Upload Produk</button>
+                    </form>
+                </div>
+                <h3 class="font-bold text-lg mb-3">Daftar Produk</h3>
+                <div class="space-y-3 pb-20">
+            `;
+            if(state.sellerProducts.length === 0) {
+                html += `<p class="text-center text-gray-400 text-sm py-4">Belum ada produk.</p>`;
+            } else {
+                state.sellerProducts.forEach(prod => {
+                    html += `
+                        <div class="flex bg-white p-3 rounded-xl border border-gray-100 shadow-sm items-center">
+                            <img src="${prod.image}" class="w-16 h-16 rounded-lg object-cover bg-gray-200">
+                            <div class="ml-3 flex-1">
+                                <h4 class="font-bold text-sm text-gray-800">${prod.name}</h4>
+                                <p class="text-green-600 font-bold text-sm">${formatRupiah(prod.price)}</p>
+                            </div>
+                            <button class="text-red-500 text-xs font-bold border border-red-200 px-3 py-1 rounded-full">Hapus</button>
+                        </div>
+                    `;
+                });
+            }
+            html += `</div>`;
+            document.getElementById('main-content').innerHTML = html;
+        };
+
+        window.previewImage = (input) => {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('img-preview');
+                    const area = document.getElementById('img-preview-area');
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                    area.classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.compressImage = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob((blob) => { resolve(blob); }, 'image/jpeg', 0.7);
+                    }
+                    img.onerror = (err) => reject(err);
+                }
+            });
+        };
+
+        window.handleProductUpload = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-upload');
+            const fileInput = document.getElementById('prod-img');
+            const name = document.getElementById('prod-name').value;
+            const price = parseInt(document.getElementById('prod-price').value);
+            if (!fileInput.files[0]) return alert("Pilih foto dulu!");
+
+            btn.disabled = true; btn.innerText = "Mengompres & Upload...";
+            try {
+                const compressedBlob = await compressImage(fileInput.files[0]);
+                const formData = new FormData();
+                formData.append('file', compressedBlob);
+                formData.append('upload_preset', CLOUDINARY_PRESET);
+                const uploadRes = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+                const uploadData = await uploadRes.json();
+                
+                if (!uploadData.secure_url) throw new Error("Gagal upload gambar");
+
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'products'), {
+                    name, price, image: uploadData.secure_url, createdAt: serverTimestamp()
+                });
+                alert("Produk berhasil ditambahkan!");
+                e.target.reset();
+                document.getElementById('img-preview').classList.add('hidden');
+                document.getElementById('img-preview-area').classList.remove('hidden');
+            } catch (error) {
+                console.error("Upload Error:", error);
+                alert("Gagal upload.");
+            } finally {
+                btn.disabled = false; btn.innerText = "Upload Produk";
+            }
+        };
+
+        window.renderDriverDashboard = () => {
+            document.getElementById('main-header').innerHTML = `<h1 class="font-bold text-xl">Driver App</h1>`;
+            document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full pt-20">
+                    <div class="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center animate-pulse mb-6">
+                        <i class="fas fa-satellite-dish text-green-600 text-4xl"></i>
+                    </div>
+                    <h2 class="text-xl font-bold mb-2">Mencari Order...</h2>
+                    <p class="text-gray-500 text-center max-w-xs">Pastikan GPS aktif.</p>
+                    <div class="mt-8 bg-white p-4 rounded-xl shadow-sm w-full border border-gray-100">
+                        <div class="flex justify-between items-center">
+                             <span class="text-sm font-bold text-gray-600">Status</span>
+                             <div class="flex items-center"><span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span><span class="font-bold text-green-600">Online</span></div>
+                        </div>
+                    </div>
+                    <button onclick="router('profile')" class="mt-4 text-gray-400 text-sm underline">Pengaturan Akun</button>
+                </div>
+            `;
+        };
+
+        const renderHome = () => {
+             document.getElementById('main-header').innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <div class="flex-1 bg-gray-100 rounded-full px-4 py-2 flex items-center text-sm text-gray-500">
+                        <i class="fas fa-search mr-2"></i>
+                        <input type="text" placeholder="Mau makan apa?" class="bg-transparent w-full outline-none">
+                    </div>
+                </div>
+            `;
+            let html = `
+                <div class="flex space-x-4 overflow-x-auto hide-scrollbar mb-6 pb-2">
+                    ${['Terdekat', 'Terlaris', 'Promo', 'Sehat', 'Minuman'].map(cat => `
+                        <div class="flex-shrink-0 flex flex-col items-center space-y-1">
+                            <div class="w-14 h-14 bg-${cat === 'Terlaris' ? 'green-100' : 'gray-100'} rounded-2xl flex items-center justify-center text-2xl">
+                                ${cat === 'Terdekat' ? '📍' : cat === 'Terlaris' ? '🔥' : cat === 'Promo' ? '🏷️' : cat === 'Sehat' ? '🥗' : '🥤'}
+                            </div>
+                            <span class="text-xs font-medium text-gray-600">${cat}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="bg-gradient-to-r from-green-500 to-green-700 rounded-2xl p-4 text-white mb-6 relative overflow-hidden shadow-lg">
+                    <div class="relative z-10">
+                        <h2 class="font-bold text-lg">Ongkir Hemat!</h2>
+                        <p class="text-xs opacity-90 mb-3">Mulai dari Rp 5.000</p>
+                    </div>
+                </div>
+                <h3 class="font-bold text-lg mb-4">Rekomendasi Pilihan</h3>
+                <div class="space-y-4">
+            `;
+            state.restaurants.forEach(resto => {
+                html += `
+                    <div onclick="router('restaurant', '${resto.id}')" class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex space-x-3 cursor-pointer hover:bg-gray-50 transition">
+                        <div class="w-24 h-24 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
+                            <img src="${resto.image}" class="w-full h-full object-cover" alt="${resto.name}">
+                        </div>
+                        <div class="flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-base line-clamp-1">${resto.name}</h4>
+                                <div class="flex items-center text-xs text-gray-500 mt-1">
+                                    <span class="text-orange-500 font-bold"><i class="fas fa-star mr-1"></i>${resto.rating || 4.5}</span>
+                                    <span class="mx-1">•</span>
+                                    <span>${resto.categories ? resto.categories.join(', ') : 'Umum'}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500 font-medium">
+                                <span class="bg-gray-100 px-2 py-1 rounded-md mr-2">${resto.distance || '1 km'}</span>
+                                <span class="bg-gray-100 px-2 py-1 rounded-md">${resto.time || '15 min'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div><div class="h-20"></div>`;
+            document.getElementById('main-content').innerHTML = html;
+        };
+
+        const renderRestaurant = (restoId) => {
+            const resto = state.restaurants.find(r => r.id === restoId);
+            if(!resto) return;
+            document.getElementById('main-header').innerHTML = `
+                <div class="flex items-center justify-between">
+                    <button onclick="router('home')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
+                    <span class="font-bold text-sm truncate max-w-[200px]">${resto.name}</span>
+                    <button class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"><i class="fas fa-share"></i></button>
+                </div>
+            `;
+            let html = `
+                <div class="relative -mx-4 -mt-4 mb-4">
+                    <img src="${resto.image}" class="w-full h-48 object-cover">
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4 pt-12">
+                        <h1 class="text-white font-bold text-2xl">${resto.name}</h1>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4 flex justify-between text-center">
+                    <div>
+                        <div class="font-bold text-sm"><i class="fas fa-star text-orange-500"></i> ${resto.rating || 4.5}</div>
+                        <div class="text-xs text-gray-400">Rating</div>
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm">${resto.distance || '1 km'}</div>
+                        <div class="text-xs text-gray-400">Jarak</div>
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm text-green-600">Diskon</div>
+                        <div class="text-xs text-gray-400">Promo</div>
+                    </div>
+                </div>
+                <h3 class="font-bold text-lg mb-3">Menu</h3>
+                <div class="space-y-4 pb-24">
+            `;
+            const menuItems = resto.menu || [];
+            menuItems.forEach(item => {
+                const inCart = state.cart.find(c => c.id === item.id);
+                const qty = inCart ? inCart.qty : 0;
+                html += `
+                    <div class="flex justify-between items-start border-b border-gray-100 pb-4">
+                        <div class="flex-1 pr-2">
+                            <h4 class="font-bold text-gray-800">${item.name}</h4>
+                            <p class="text-xs text-gray-500 line-clamp-2 my-1">${item.desc || 'Enak dan lezat'}</p>
+                            <div class="font-bold text-gray-800 mt-2">${formatRupiah(item.price)}</div>
+                        </div>
+                        <div class="flex flex-col items-end space-y-2">
+                            <div class="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden relative">
+                                <img src="${item.img || item.image}" class="w-full h-full object-cover">
+                            </div>
+                            ${qty > 0 ? `
+                                <div class="flex items-center bg-white border border-green-600 rounded-full h-8 shadow-sm">
+                                    <button onclick="updateCart('${item.id}', -1, '${resto.id}')" class="px-3 text-green-600 font-bold">-</button>
+                                    <span class="text-sm font-bold w-4 text-center">${qty}</span>
+                                    <button onclick="updateCart('${item.id}', 1, '${resto.id}')" class="px-3 text-green-600 font-bold">+</button>
+                                </div>
+                            ` : `
+                                <button onclick="updateCart('${item.id}', 1, '${resto.id}')" class="bg-white text-green-600 border border-green-600 text-xs font-bold px-4 py-1.5 rounded-full hover:bg-green-50 transition">Tambah</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            document.getElementById('main-content').innerHTML = html;
+        }
+
+        const renderOrders = () => {
+             document.getElementById('main-header').innerHTML = `<h1 class="font-bold text-xl">Riwayat Pesanan</h1>`;
+             if(state.orders.length === 0) {
+                document.getElementById('main-content').innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-96 text-center">
+                        <img src="https://cdn-icons-png.flaticon.com/512/2038/2038854.png" class="w-32 opacity-20 mb-4 grayscale">
+                        <h3 class="font-bold text-gray-600">Belum ada pesanan</h3>
+                    </div>`;
+                return;
+            }
+            let html = `<div class="space-y-4 pb-20 mt-2">`;
+            state.orders.forEach(order => {
+                html += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="font-bold">${order.restaurantName}</div>
+                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-md">Selesai</span>
+                        </div>
+                        <div class="border-t border-gray-50 py-2 space-y-1">
+                            ${order.items.map(i => `<div class="flex justify-between text-xs text-gray-600"><span>${i.qty}x ${i.name}</span><span>${formatRupiah(i.price*i.qty)}</span></div>`).join('')}
+                        </div>
+                         <div class="flex justify-between font-bold text-sm mt-2 border-t pt-2"><span>Total</span><span>${formatRupiah(order.total)}</span></div>
+                    </div>`;
+            });
+            html += `</div>`;
+            document.getElementById('main-content').innerHTML = html;
+        };
+
+        const renderProfile = () => {
+            const role = userProfile ? userProfile.role.toUpperCase() : 'USER';
+            document.getElementById('main-header').innerHTML = `<h1 class="font-bold text-xl">Profil Saya</h1>`;
+            document.getElementById('main-content').innerHTML = `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-xl"><i class="fas fa-user"></i></div>
+                    <div>
+                        <h2 class="font-bold text-lg">${userProfile?.email || 'Guest'}</h2>
+                        <div class="flex items-center space-x-2">
+                             <span class="text-xs text-gray-500">${userProfile?.phone || '-'}</span>
+                             <span class="text-[10px] bg-green-600 text-white px-2 py-0.5 rounded">${role}</span>
+                        </div>
+                    </div>
+                </div>
+                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 flex justify-between"><span>Bantuan</span><i class="fas fa-chevron-right text-gray-400"></i></div>
+                    <button onclick="logout()" class="w-full text-left p-4 flex justify-between text-red-500"><span>Keluar</span><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            `;
+        };
+        
+        window.logout = () => { location.reload(); }
+        window.renderPromo = () => {
+             document.getElementById('main-header').innerHTML = `<h1 class="font-bold text-xl">Promo</h1>`;
+             document.getElementById('main-content').innerHTML = `<div class="bg-orange-500 text-white p-6 rounded-xl text-center font-bold">PROMO BESAR</div>`;
+        }
+
+        const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+        const calculateFees = (restaurantId) => {
+            const resto = state.restaurants.find(r => r.id === restaurantId);
+            const distStr = resto ? resto.distance : '1.5 km';
+            const dist = parseFloat(distStr.replace(' km', '').replace(',', '.'));
+            const baseFare = 5000; const ratePerKm = 2000; const appFee = 2000;
+            let deliveryFee = baseFare;
+            if (dist > 2) { deliveryFee += Math.ceil((dist - 2) * ratePerKm); }
+            return { deliveryFee, appFee, distance: dist };
+        };
+
+        window.updateCart = (itemId, change, restoId) => {
+             let itemInfo = null; let restaurantInfo = null;
+             for(let r of state.restaurants) { if(r.id === restoId) { restaurantInfo = r; itemInfo = r.menu.find(m => m.id === itemId); break; } }
+             if (state.cart.length > 0 && state.cart[0].restaurantId !== restoId) { if(!confirm("Ganti resto?")) return; state.cart = []; }
+             const existingItem = state.cart.find(c => c.id === itemId);
+             if (existingItem) { existingItem.qty += change; if (existingItem.qty <= 0) state.cart = state.cart.filter(c => c.id !== itemId); } 
+             else if (change > 0) { state.cart.push({ id: itemId, name: itemInfo.name, price: itemInfo.price, qty: 1, restaurantId: restoId, restaurantName: restaurantInfo.name }); }
+             if(state.page === 'restaurant') renderRestaurant(restoId);
+             else if(!document.getElementById('cart-modal').classList.contains('hidden')) renderCartModalContent();
+             updateCartFloat();
+        };
+
+        const updateCartFloat = () => {
+             const totalQty = state.cart.reduce((sum, item) => sum + item.qty, 0);
+             const foodTotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+             document.getElementById('float-count').innerText = `${totalQty} item`;
+             document.getElementById('float-total').innerText = formatRupiah(foodTotal);
+             if(totalQty > 0 && state.page !== 'orders' && userProfile?.role !== 'penjual') { document.getElementById('cart-float').classList.remove('hidden'); } 
+             else { document.getElementById('cart-float').classList.add('hidden'); }
+        }
+        
+        window.showCartModal = () => { document.getElementById('cart-modal').classList.remove('hidden'); renderCartModalContent(); }
+        window.hideCartModal = () => document.getElementById('cart-modal').classList.add('hidden');
+        const renderCartModalContent = () => {
+             const foodTotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+             const { deliveryFee, appFee, distance } = calculateFees(state.cart[0].restaurantId);
+             const grandTotal = foodTotal + deliveryFee + appFee;
+             document.getElementById('bill-food-total').innerText = formatRupiah(foodTotal);
+             document.getElementById('bill-delivery-fee').innerText = formatRupiah(deliveryFee);
+             document.getElementById('bill-app-fee').innerText = formatRupiah(appFee);
+             document.getElementById('bill-distance').innerText = `(${distance} km)`;
+             document.getElementById('cart-final-total').innerText = formatRupiah(grandTotal);
+             document.getElementById('cart-items-container').innerHTML = state.cart.map(item => `
+                <div class="flex justify-between items-center">
+                    <div class="flex-1"><div class="font-bold text-sm">${item.name}</div><div class="text-xs text-gray-500">${formatRupiah(item.price)}</div></div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="updateCart('${item.id}', -1, '${item.restaurantId}')" class="w-6 h-6 rounded-full border border-green-600 text-green-600 font-bold text-xs flex items-center justify-center">-</button>
+                        <span class="text-sm font-bold">${item.qty}</span>
+                        <button onclick="updateCart('${item.id}', 1, '${item.restaurantId}')" class="w-6 h-6 rounded-full bg-green-600 text-white font-bold text-xs flex items-center justify-center">+</button>
+                    </div>
+                </div>`).join('');
+        };
+
+        window.processOrder = async () => {
+             const btn = document.getElementById('btn-order');
+             btn.innerHTML = 'Memproses...'; btn.disabled = true;
+             try {
+                const foodTotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                const { deliveryFee, appFee } = calculateFees(state.cart[0].restaurantId);
+                const grandTotal = foodTotal + deliveryFee + appFee;
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), {
+                    restaurantName: state.cart[0].restaurantName, items: state.cart, foodTotal, deliveryFee, appFee, total: grandTotal, status: 'Selesai', createdAt: serverTimestamp()
+                });
+                state.cart = []; updateCartFloat(); hideCartModal(); alert('Pesanan berhasil!'); router('orders');
+             } catch(e) { console.error(e); alert('Gagal pesan'); }
+             finally { btn.innerHTML = 'Pesan Sekarang'; btn.disabled = false; }
+        };
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
